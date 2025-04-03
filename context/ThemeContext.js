@@ -14,7 +14,7 @@ export const ThemeProvider = ({ children }) => {
         setIsDarkMode(true);
       }
     };
-    loadTheme();
+    loadTheme(); 
   }, []);
 
   // Toggle theme and save to AsyncStorage

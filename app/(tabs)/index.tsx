@@ -19,6 +19,10 @@ const index = () => {
   OneSignal.Notifications.addEventListener('click', (event) => {
     console.log('OneSignal: notification clicked:', event);});
 
+      
+
+
+    
 
   return (
     <ThemeProvider>

@@ -1,12 +1,11 @@
-import { Platform,View, Text, ActivityIndicator, StyleSheet, Dimensions } from 'react-native';
+import { Platform,View, Text, ActivityIndicator, StyleSheet, Dimensions ,FlatList} from 'react-native';
 import { ThemeContext } from '../context/ThemeContext';
 import ThemeToggleButton from '../components/ThemeToggleButton';
 
 import React, { useEffect, useState ,useContext} from 'react';
 import * as Location from 'expo-location';
-import { FlatList } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import { Searchbar } from 'react-native-paper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 const BASE_URL = "https://api.openweathermap.org/data/2.5";
@@ -51,7 +50,7 @@ const WeatherScreen = () => {
     const [location, setLocation] = useState<Location.LocationObject | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [forecast, setForecast] = useState<Forecast[]>(); 
-
+    const [searchedCities, setSearchedCities] = useState<string[]>([]); // State to store searched cities
 
     const units = "metric"; 
     const fetchWeather = async (lat?: number, lon?: number) => {
@@ -100,24 +99,35 @@ const WeatherScreen = () => {
     
             // ✅ Fetch weather for extracted lat/lon
             fetchWeather(lat, lon);
+            fetchForecast(lat,lon); // Fetch forecast after getting weather
+
+
+           
+
         } catch (error) {
             setErrorMsg("Failed to fetch location.");
         }
     };
     
 
-    const fetchForecast = async () => { 
+    const fetchForecast = async (lat?: number, lon?: number) => { 
 
-        // api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={API key}
-        if(!location) {
-            console.log("location is null");
-            return;
+        let latitude = lat;
+        let longitude = lon;
+
+
+
+        if (!latitude || !longitude) {
+            // Fetch current location if lat & lon are not provided
+            if (!location) {
+                console.log("Location is null");
+                return;
+            }
+            latitude = location.coords.latitude;
+            longitude = location.coords.longitude;
         }
-        const lat = location?.coords.latitude || 0; // default to 0 if location is null
-        const lon =location?.coords.longitude || 0; 
 
-
-        const results = await fetch(`${BASE_URL}/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=${units}`);
+        const results = await fetch(`${BASE_URL}/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=${units}`);
         const data = await results.json();
         setForecast(data.list);                          
 
@@ -148,6 +158,18 @@ const WeatherScreen = () => {
         getCurrentLocation();
       }, []);
 
+      useEffect(() => {
+        const loadSearchedCities = async () => {
+            const savedCities = await AsyncStorage.getItem('searchedCities');
+            if (savedCities) {
+                setSearchedCities(JSON.parse(savedCities));
+            }
+        };
+
+        loadSearchedCities();
+    }, []);
+
+
 
 
     if (!weather) {
@@ -155,7 +177,6 @@ const WeatherScreen = () => {
     }
 
     return (
-        <LinearGradient colors={['#0000FF', '#87CEFA']} style={styles.container}>
 
 
 
@@ -164,7 +185,12 @@ const WeatherScreen = () => {
             { backgroundColor: isDarkMode ? "#000" : "#fff" },
           ]}>
 
-            <View style={{ width: '90%', marginVertical: 20 }}>
+
+            <View style={{ position: 'absolute', top: 20, right: 20 }}>
+            <ThemeToggleButton />
+            </View>
+
+            <View style={{ position: 'absolute', top: 80,width: '90%', marginVertical: 10 }}>
                 <Searchbar
                     placeholder="Search city..."
                     value={searchQuery}
@@ -173,9 +199,7 @@ const WeatherScreen = () => {
                 />
             </View>
 
-            <View style={{ position: 'absolute', top: 20, right: 20 }}>
-            <ThemeToggleButton />
-            </View>
+
 
             <View style={styles.container2}>    
 
@@ -222,7 +246,7 @@ const WeatherScreen = () => {
           
           
         </View>
-        </LinearGradient>
+        
 
     );
 };
@@ -234,10 +258,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     container2: {
-        top: 0,
+        position: 'absolute',
+        top: 170,
         alignItems: 'center',
         backgroundColor: 'rgba(255, 255, 128, 0.55)', // Transparent yellow
-        padding: Dimensions.get('window').width * 0.01, // 25% of screen width
+        padding: Dimensions.get('window').width * 0.005, // 25% of screen width
         borderRadius: '10%',
     },
     container4: {

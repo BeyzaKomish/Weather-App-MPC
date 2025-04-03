@@ -5,9 +5,14 @@ import ThemeToggleButton from '../components/ThemeToggleButton';
 import React, { useEffect, useState ,useContext} from 'react';
 import * as Location from 'expo-location';
 import { FlatList } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { Searchbar } from 'react-native-paper';
+
+
 const BASE_URL = "https://api.openweathermap.org/data/2.5";
 const API_KEY = "2c7c6084ca54754e03a6be878e3742ea";
 
+//http://api.openweathermap.org/geo/1.0/direct?q={city name},{state code},{country code}&limit={limit}&appid={API key}
 
 // api.openweathermap.org/data/2.5/forecast/daily?lat={lat}&lon={lon}&cnt={cnt}&appid={API key}
 type Weather = {
@@ -40,8 +45,7 @@ type Forecast = {
 
 const WeatherScreen = () => {
     const { isDarkMode } = useContext(ThemeContext);
-
-
+    const [searchQuery, setSearchQuery] = useState("");
 
     const [weather, setWeather] = useState<Weather>();
     const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -50,20 +54,57 @@ const WeatherScreen = () => {
 
 
     const units = "metric"; 
-    const fetchWeather = async () => {
-        if(!location) {
-            console.log("location is null");
-            return;
+    const fetchWeather = async (lat?: number, lon?: number) => {
+        try {
+            let latitude = lat;
+            let longitude = lon;
+    
+            if (!latitude || !longitude) {
+                // Fetch current location if lat & lon are not provided
+                if (!location) {
+                    console.log("Location is null");
+                    return;
+                }
+                latitude = location.coords.latitude;
+                longitude = location.coords.longitude;
+            }
+    
+            console.log(`Fetching weather for lat=${latitude}, lon=${longitude}`);
+            
+            const results = await fetch(`${BASE_URL}/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=${units}`);
+            const data = await results.json();
+            setWeather(data);
+        } catch (error) {
+            console.error("Error fetching weather:", error);
         }
-        const lat = location?.coords.latitude || 0; // default to 0 if location is null
-        const lon =location?.coords.longitude || 0; // default to 0 if location is null
-       // or "imperial" for Fahrenheit
-
-        console.log("fetching data");
-        const results = await fetch(`${BASE_URL}/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=${units}`);
-        const data = await results.json();
-        setWeather(data);
     };
+    
+    const fetchWeatherByCity = async () => {
+        if (!searchQuery.trim()) return;
+    
+        try {
+            console.log("Fetching coordinates for:", searchQuery);
+    
+            const geoResults = await fetch(
+                `http://api.openweathermap.org/geo/1.0/direct?q=${searchQuery}&limit=5&appid=${API_KEY}`
+            );
+            const geoData = await geoResults.json();
+    
+            if (!geoData.length) {
+                setErrorMsg("City not found!");
+                return;
+            }
+    
+            const { lat, lon } = geoData[0]; 
+            console.log(`Coordinates for ${searchQuery}: lat=${lat}, lon=${lon}`);
+    
+            // ✅ Fetch weather for extracted lat/lon
+            fetchWeather(lat, lon);
+        } catch (error) {
+            setErrorMsg("Failed to fetch location.");
+        }
+    };
+    
 
     const fetchForecast = async () => { 
 
@@ -114,10 +155,23 @@ const WeatherScreen = () => {
     }
 
     return (
+        <LinearGradient colors={['#0000FF', '#87CEFA']} style={styles.container}>
+
+
+
         <View style={[
             styles.container,
             { backgroundColor: isDarkMode ? "#000" : "#fff" },
           ]}>
+
+            <View style={{ width: '90%', marginVertical: 20 }}>
+                <Searchbar
+                    placeholder="Search city..."
+                    value={searchQuery}
+                    onChangeText={(query) => setSearchQuery(query)}
+                    onSubmitEditing={fetchWeatherByCity} // Fetch weather on enter key
+                />
+            </View>
 
             <View style={{ position: 'absolute', top: 20, right: 20 }}>
             <ThemeToggleButton />
@@ -168,6 +222,8 @@ const WeatherScreen = () => {
           
           
         </View>
+        </LinearGradient>
+
     );
 };
 
@@ -176,7 +232,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundImage: 'linear-gradient(to bottom,rgba(17, 83, 237, 0.16),rgba(22, 130, 188, 0.34))', // Light pink to dark pink gradient
     },
     container2: {
         top: 0,

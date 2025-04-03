@@ -17,6 +17,8 @@ const ThemeToggleButton = () => {
                 trackColor={{ false: "#767577", true: "#81b0ff" }}
             />
         </View>
+
+        
     );
 };
 

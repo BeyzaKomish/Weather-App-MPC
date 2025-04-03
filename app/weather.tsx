@@ -86,6 +86,7 @@ const WeatherScreen = () => {
         if(location)//if the location is not null
         {
             fetchWeather();
+            
             fetchForecast();
         }
       
